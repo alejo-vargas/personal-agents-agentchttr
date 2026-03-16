@@ -1,23 +1,30 @@
 # Stop Agentchattr
 
-Stop all agentchattr processes - server and agents.
+Stop the agentchattr server.
+
+## ⚠️ CRITICAL WARNING
+
+**NEVER run `tmux kill-session` or `tmux kill-server`!**
+
+Killing tmux sessions destroys agent context and conversation history. The user will lose all their work.
 
 ## Instructions
 
-Run these commands to shut everything down:
-
+**To stop ONLY the server (SAFE - agents will auto-reconnect when restarted):**
 ```bash
-# Kill all agent tmux sessions
-tmux kill-session -t agentchattr-claude 2>/dev/null
-tmux kill-session -t agentchattr-codex 2>/dev/null
-tmux kill-session -t agentchattr-claude-2 2>/dev/null
-tmux kill-session -t agentchattr-codex-2 2>/dev/null
-
-# Kill the server
 pkill -f "python.*run.py"
-
-# Kill any processes on the ports
-lsof -ti:8300,8200,8201 | xargs kill -9 2>/dev/null
 ```
 
-Confirm to the user that agentchattr has been stopped.
+**To stop everything including agents (DESTRUCTIVE - ask permission first!):**
+
+Before running any tmux kill commands, you MUST:
+1. Explicitly ask the user: "This will destroy all agent conversation history. Are you sure?"
+2. Wait for explicit confirmation
+3. Only then run:
+```bash
+tmux kill-session -t agentchattr-claude 2>/dev/null
+tmux kill-session -t agentchattr-codex 2>/dev/null
+pkill -f "python.*run.py"
+```
+
+Confirm to the user what was stopped.
