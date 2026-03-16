@@ -71,6 +71,25 @@ To start everything with full auto-trigger:
 3. Open http://localhost:8300 in browser
 4. Agents show as "online" and auto-respond to @mentions
 
+## Renaming Agents
+
+Agents register with default names (claude, codex, etc.) but can be renamed to custom names. Use the API to rename:
+
+```bash
+# Get session token from server startup output, then:
+TOKEN="<session_token>"
+
+# Rename an agent (replace 'claude' with current name, 'CustomName' with desired name)
+curl -X POST "http://127.0.0.1:8300/api/label/claude" \
+  -H "Content-Type: application/json" \
+  -H "X-Session-Token: $TOKEN" \
+  -d '{"label": "CustomName"}'
+```
+
+Or click the agent's status pill in the web UI header to rename via the interface.
+
+Renames persist in `~/agentchattr/data/renames.json` and agents will @mention each other by their custom names.
+
 ## Important Notes
 
 - Agents launched via start scripts have FULL auto-trigger - they respond to @mentions automatically
