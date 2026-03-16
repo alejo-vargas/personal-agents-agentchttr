@@ -88,40 +88,38 @@ To start everything with full auto-trigger:
 3. Open http://localhost:8300 in browser
 4. Agents show as "online" and auto-respond to @mentions
 
-## Renaming Agents
+## Agent Names
 
-Agents register with default names (claude, codex, etc.) but can be renamed to custom names. Use the API to rename:
+**Current agent names:**
+- Claude = **funky**
+- Codex = **outsider**
+
+### Pre-configured renames (auto-applied on startup)
+
+The file `~/agentchattr/data/renames.json` maps default agent names to custom names:
+
+```json
+{"claude": "funky", "claude-2": "funky", "claude-3": "funky", "codex": "outsider", "codex-2": "outsider", "codex-3": "outsider"}
+```
+
+This handles cases where multiple instances get numbered (claude-2, codex-2, etc.) - they all map to the same display name.
+
+### Manual renaming via API
+
+If you need to rename at runtime:
 
 ```bash
 # Get session token from server startup output, then:
 TOKEN="<session_token>"
 
-# Rename an agent (replace 'claude' with current name, 'CustomName' with desired name)
+# Rename an agent
 curl -X POST "http://127.0.0.1:8300/api/label/claude" \
   -H "Content-Type: application/json" \
   -H "X-Session-Token: $TOKEN" \
-  -d '{"label": "CustomName"}'
+  -d '{"label": "funky"}'
 ```
 
 Or click the agent's status pill in the web UI header to rename via the interface.
-
-Renames persist in `~/agentchattr/data/renames.json` and agents will @mention each other by their custom names.
-
-## Tmux Mouse Scrolling
-
-Agents run in tmux sessions. To enable proper mouse scrolling (instead of cycling through command history), ensure this is in `~/.tmux.conf`:
-
-```bash
-set -g mouse on
-```
-
-To add it:
-```bash
-echo "set -g mouse on" >> ~/.tmux.conf
-tmux source-file ~/.tmux.conf
-```
-
-This setting persists across sessions and doesn't affect agentchattr functionality.
 
 ## Important Notes
 
