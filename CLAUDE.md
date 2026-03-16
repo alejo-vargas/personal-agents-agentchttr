@@ -90,6 +90,22 @@ Or click the agent's status pill in the web UI header to rename via the interfac
 
 Renames persist in `~/agentchattr/data/renames.json` and agents will @mention each other by their custom names.
 
+## Tmux Mouse Scrolling
+
+Agents run in tmux sessions. To enable proper mouse scrolling (instead of cycling through command history), ensure this is in `~/.tmux.conf`:
+
+```bash
+set -g mouse on
+```
+
+To add it:
+```bash
+echo "set -g mouse on" >> ~/.tmux.conf
+tmux source-file ~/.tmux.conf
+```
+
+This setting persists across sessions and doesn't affect agentchattr functionality.
+
 ## Important Notes
 
 - Agents launched via start scripts have FULL auto-trigger - they respond to @mentions automatically
