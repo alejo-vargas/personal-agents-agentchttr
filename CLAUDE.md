@@ -173,7 +173,7 @@ Chat handle: lowercase, hyphenated (e.g., `racer`, `absolute-reviewer`)
    cd ~/Agents/{Display Name}
    git init -q && git add -A && git commit -q -m "Initial: {Name} agent identity and protocols
 
-   Co-Authored-By: Claude Opus 4.6 (1M context) <noreply@anthropic.com>"
+   Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
    git branch -M main
    git remote add origin https://github.com/alejo-vargas/{repo-name}.git
    git push -u origin main
@@ -285,6 +285,76 @@ The watchdog runs every 15 seconds and:
 **Always start the watchdog after nuke-and-launch.** Run it in the background or in this agent's terminal.
 
 **Known limitation:** The watchdog has a bug where it may not detect agents that already have their renamed label (e.g., "funky" instead of "claude"). Needs a fix to check all keys in the status response, not just base names. TODO.
+
+## DIAGNOSTICS
+
+### "Auto-update failed" + interrupt loop on new agents (broken native binary)
+
+**Symptom:** A freshly-launched agent shows `Auto-update failed` in its pane and every auto-trigger mention immediately becomes `Interrupted · What should Claude do instead?`. The agentchattr server log shows repeated `Agent routing for X interrupted — auto-recovered` for that slot. Older agents that have been running for days are unaffected.
+
+**Quick check:**
+```bash
+head -1 ~/.nvm/versions/node/v24.11.1/lib/node_modules/@anthropic-ai/claude-code/bin/claude.exe
+```
+If it prints `echo "Error: claude native binary not installed." >&2`, the platform-native package is missing. Cross-check: `tmux list-panes -a -F '#{session_name}: #{pane_current_command}' | grep agentchattr` — broken agents show `node`, working ones show `claude.exe`.
+
+**Root cause:** A prior `npm i -g @anthropic-ai/claude-code` ran with `--ignore-scripts` / `--omit=optional` or had a failed postinstall, leaving `claude.exe` as a 500-byte placeholder script. Older claude-code processes survive because their inodes were resolved before the breakage; new spawns hit the placeholder.
+
+**Fix:**
+```bash
+npm i -g @anthropic-ai/claude-code
+```
+If npm errors with `ENOTEMPTY` on `.claude-code-XXX`, that's a leftover temp dir from a previous failed install. Move it out of the way (don't delete — running processes may have inodes inside) then retry:
+```bash
+mv ~/.nvm/versions/node/v24.11.1/lib/node_modules/@anthropic-ai/.claude-code-XXX \
+   ~/.nvm/versions/node/v24.11.1/lib/node_modules/@anthropic-ai/orphan-bak
+npm i -g @anthropic-ai/claude-code
+```
+Running claude-code processes are NOT affected by the reinstall (in-memory inodes survive). To get currently-running agents on the new version, do a full nuke-and-launch after the npm install.
+
+### `claude` (slot 1) registers as `claude-1` instead of `claude`
+
+**Symptom:** After nuke-and-launch, the rename `claude -> funky` fails with `{"error":"Not found: claude"}`, and the status shows `claude-1` with label `Claude 1` instead.
+
+**Cause:** Race condition during launch — the first wrapper sometimes claims `claude-1` instead of `claude`. Happens intermittently.
+
+**Fix:** Just rename `claude-1 -> funky` via the API after the script runs. Non-disruptive.
+```bash
+TOKEN=$(curl -s http://localhost:8300 | grep -o 'window.__SESSION_TOKEN__="[^"]*"' | cut -d'"' -f2)
+curl -s -X POST "http://localhost:8300/api/label/claude-1" -H "Content-Type: application/json" -H "X-Session-Token: $TOKEN" -d '{"label": "funky"}'
+```
+
+### After surgical relaunch, agent's @mention shows as `@claude-N` instead of its label
+
+**Symptom:** You restart one agent (e.g., reviewer) without nuke-and-launch. The agent works, but typing `@` in the chat autocompletes to `@claude-2` instead of `@reviewer`.
+
+**Cause:** The wrapper's `--label` flag sets the display label but doesn't move the agent's slot key. The autocomplete uses the key.
+
+**Fix:** Always call the rename API after a surgical relaunch, even when the label is already correct:
+```bash
+curl -s -X POST "http://localhost:8300/api/label/claude-N" -H "Content-Type: application/json" -H "X-Session-Token: $TOKEN" -d '{"label": "DESIRED_NAME"}'
+```
+
+## SURGICAL RESTART OF ONE AGENT (without nuke)
+
+When a single agent's MCP session is stale but you must NOT disrupt the others (they're in the middle of work):
+
+1. **Identify the agent's slot.** Map by `tmux list-panes -a -F '#{session_name}: #{pane_pid}'` and `ps aux | grep "wrapper.py.*--label NAME"`.
+2. **Kill its tmux session and wrapper only.**
+   ```bash
+   tmux kill-session -t agentchattr-claude-N
+   pkill -f "wrapper.py claude --label NAME"
+   ```
+3. **Wait ~20s** for the server's ghost slot to time out (otherwise the new wrapper picks a different slot number and you accumulate ghosts).
+4. **Relaunch via the agent's start script as a backgrounded shell** — NOT inside a `tmux new-session "command"` (the wrapper daemonizes its own tmux session for the inner claude-code; wrapping it in your own tmux session causes the outer session to exit immediately when the wrapper backgrounds).
+   ```bash
+   cd ~/agentchattr/macos-linux
+   nohup sh start_NAME.sh > /tmp/NAME-relaunch.log 2>&1 &
+   ```
+5. **Rename via API** to fix the @mention key (see diagnostic above).
+6. **Open a Terminal window** with the agent's profile attached to the new tmux session.
+
+The other agents' tmux sessions, wrappers, and MCP sessions remain untouched.
 
 ## SLEEP / DISCONNECT RECOVERY
 
