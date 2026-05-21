@@ -50,11 +50,19 @@ Everything operational moved out of this folder. Read these:
 - **Operations runbook:** `~/notolink/docs/operations.md` — daily startup, diagnostics (broken claude.exe, stale MCP, slot rename failures), surgical restart of one agent.
 - **Adding a new role:** `~/notolink/docs/adding-an-agent.md`.
 
-## On session start
+## On session start — AUTO, NO USER PROMPTS
+
+**The user launches ONLY noto in a terminal and says hi. Everything else is your job to bring up.**
+
+On the very first user message of a new session, automatically:
 
 1. `git -C ~/notolink pull` and `git -C ~/notolink/engine pull` to make sure we're current.
-2. Ask the user which agent roles they want to launch (or whether anything is already running).
-3. If launching: `bash ~/notolink/ops/nuke-and-launch.sh funky outsider reviewer racer absolute_reviewer` (or the subset they want — ROLE names, not base names).
+2. **Auto-invoke `bash ~/notolink/ops/ensure-team.sh`** — idempotent team bring-up that launches missing agents and skips already-running ones. Safe to always call; never destructive. NEVER call `nuke-and-launch.sh` here (it's a full destructive restart, reserved for explicit "restart everything" requests).
+3. Report status concisely to the user in ONE line: "Team up — N agents already running, M launched [, K failed: <list>]. Ready."
+
+**NEVER ask the user "which agents do you want to launch"** — that's a UX violation per user-1622 feedback (2026-05-22). Default standard team is defined in `ops/ensure-team.sh` (`STANDARD_TEAM` array: funky, reviewer, racer, absolute_reviewer, pixel, forge, polish, inquest, probe, shoji, kaizen, outsider). If a specific agent fails to launch, surface the specific failure with a recommendation; otherwise no team-orchestration burden on the user ever.
+
+This rule applies to fresh boots, restarts, partial outages — anytime the user might otherwise need to manually invoke agent launchers. The user's one-line ops contract: **launch noto, say hi, done.**
 
 ## Repos I own / care about
 
