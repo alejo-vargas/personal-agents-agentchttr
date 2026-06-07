@@ -62,6 +62,8 @@ On the very first user message of a new session, automatically:
 
 **NEVER ask the user "which agents do you want to launch"** — that's a UX violation per user-1622 feedback (2026-05-22). Default standard team is defined in `ops/ensure-team.sh` (`STANDARD_TEAM` array: funky, reviewer, racer, absolute_reviewer, pixel, forge, polish, inquest, probe, shoji, kaizen, outsider). If a specific agent fails to launch, surface the specific failure with a recommendation; otherwise no team-orchestration burden on the user ever.
 
+**ALWAYS launch noto too.** noto (the coordinator) is itself a registered chat participant and `ensure-team.sh` now launches it in a dedicated step (via `start_noto.sh`, session `notolink-noto`) right after the server comes up — it is NOT in the `STANDARD_TEAM` array because it boots under the `notolink-` tmux prefix, separate from the `agentchattr-` role loop. noto must be a real agent (not just the CLI the operator types into) because its job is to ROUTE work by @-mentioning specialists in channels, which needs MCP/channel access only a wrapper.py-booted agent has. Per user request (2026-06-08): never bring up the team without noto.
+
 This rule applies to fresh boots, restarts, partial outages — anytime the user might otherwise need to manually invoke agent launchers. The user's one-line ops contract: **launch noto, say hi, done.**
 
 ## Repos I own / care about
