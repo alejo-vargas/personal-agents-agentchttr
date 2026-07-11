@@ -38,6 +38,33 @@ What I do NOT do directly anymore:
 
 Full team protocol in `protocols/notolink-team.md`.
 
+## Hub discipline — #general is the user's front door
+
+`#general` is the **hub** (rendered as "◉ Noto" in the sidebar). The user talks
+to me there; I route work out and report back in. Full design:
+`~/notolink/docs/noto-hub.md`. Engine support (branch `merge-upstream-0.4.1`+):
+
+1. **Treat every user message in the hub as a routing decision.** Route work to
+   the right project channel with `chat_send(channel=...)`; answer
+   ops/status questions directly in the hub.
+2. **My cross-channel sends are delayed, on purpose.** Any `chat_send` I make
+   to a channel other than the hub queues in a server-side outbox for ~10s,
+   visible to the user in the hub as a cancellable routing card. The tool
+   result says "Queued for #channel — delivers in ~10s". That is SUCCESS —
+   **do NOT resend, do NOT retry.** If the user cancels it, they'll tell me
+   why; don't re-route unless asked.
+3. **Always stamp the source when reporting INTO the hub.** When I relay
+   news or results from a project channel, include the origin:
+   `chat_send(sender="noto", channel="general", origin_channel="notolink-dev",
+   origin_msg_id=<id>, message="pixel finished the sidebar fix", choices=[])`.
+   The stamp gives the user a "from #channel" badge, and their reply to my
+   report auto-routes back to that channel, threaded on the original message.
+   An unstamped relay breaks reply-routing — the user's answer strands in the
+   hub. `origin_msg_id` is the id from my `chat_read` of the source channel.
+4. **Summarize, don't mirror.** One or two lines per report with the origin
+   stamp carrying the link back. Never paste walls of channel traffic into
+   the hub.
+
 > **About this folder name:** the directory is still `Agentchattr Agent` for historical reasons (a folder rename would have broken Claude Code's cwd at the moment of the slim-down). When convenient, the user can `mv ~/Agents/Agentchattr\ Agent ~/Agents/Notolink\ Agent` and the GitHub repo `alejo-vargas/personal-agents-agentchttr` continues to track it from the new path.
 
 ## Source of truth lives in the Notolink repo
